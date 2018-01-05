@@ -49,6 +49,7 @@ var attuatorArchive [numactuators]Actuator
 var sensorArchive [numsensors]Sensor
 var path string
 var receivedMessage []string
+var topicList  = []string{"topic1", "topic2","topic3","topic4"}
 var ackNack = [2]string{"ack", "fault"}//fault messo come test
 //frequenza di invio messaggi da parte di sensor
 var frequency time.Duration = 4 * time.Second
@@ -151,7 +152,7 @@ func sensors(registration bool) {
 
 		for numsens > 0 {
 			go broker(csensor[numsens-1], nil, false)
-			topicsS.topicsS[ids] = "topic1"                                   // per ora, topic uguale per tutti i sensori
+			topicsS.topicsS[ids] = topicList[rand.Intn(4)]                                   // per ora, topic uguale per tutti i sensori
 			csensor[numsens-1] <- Sensor{ids, topicsS.topicsS, rand.Intn(50)} //poi il value sarà random
 			ids++
 			//time.Sleep(1 * time.Second)
