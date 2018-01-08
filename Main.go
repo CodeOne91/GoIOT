@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"time"
-
 	"math/rand"
 	"os"
 )
@@ -35,56 +34,67 @@ func (m Message) MessageToString() string{
 
 
 //al momento tutti gli attori e i topic sono costanti, poi si potrebbero mettere interattivi
-const numactuators = 4
-const numsensors = 3
 const numtopics = 2
 
 //uso delle variabili globali cosicchè istanzio solo una volta la memoria per le funzioni che vengono richiamate più volte
 //alla fine, li usiamo sempre nel nostro progetto
-var csensor [numsensors]chan Sensor
-var cactuator [numactuators]chan Actuator
+var csensor []chan Sensor
+var cactuator []chan Actuator
 var cbroker chan Message
-var ackch [numactuators]chan string //canale usato per spedire ack dall'attuatore
-var attuatorArchive [numactuators]Actuator
-var sensorArchive [numsensors]Sensor
+var ackch []chan string //canale usato per spedire ack dall'attuatore
+var attuatorArchive []Actuator
+var sensorArchive []Sensor
 var path string
 var receivedMessage []string
 var topicList  = []string{"topic1", "topic2","topic3","topic4"}
 var ackNack = [2]string{"ack", "fault"}//fault messo come test
 //frequenza di invio messaggi da parte di sensor
-var frequency time.Duration = 4 * time.Second
+const frequency time.Duration = 4 * time.Second
 //la funzione main non fa altro che le routine normali SEQUENZIALI alle quali sono associate go routine "multithread"
 func main() {
 	//Prendo il path per poter scrivere nel percorso di esecuzione
 	path = definePath()
 
+
+	var nsensor   int
+	var nactuator int
+
+	fmt.Print("Number of Sensors: ")
+	fmt.Scan(&nsensor)
+	fmt.Print("Number of Actuators: ")
+	fmt.Scan(&nactuator)
+
+	csensor   = make([]chan Sensor,nsensor)
+	cactuator = make([]chan Actuator,nactuator)
+	ackch     = make([]chan string,nactuator)
+
+	attuatorArchive = make([]Actuator,nactuator)
+	sensorArchive   = make([]Sensor,nsensor)
+
 	var tickChan = time.NewTicker(frequency).C
 	fmt.Println("Frequenza invio messaggi : ", frequency)
-	sensors(true)
-	actuators(true, nil, 0)
+	sensors(true,nsensor,csensor)
+	actuators(true, nil, 0,nactuator,cactuator)
 
 	for {
 		select {
 
 		case <-tickChan:
-			go sensors(false)
-
+			go sensors(false,nsensor,csensor)
 
 		}
 	}
 
 }
-
 //la booleana registration, serve per la connect e per il make dei channel e dei topics,
 //il message è il tipo di channel che prende per poi processaarlo
 //l'id lo userò per la funzione del broker per stampare a schermo(e poi eventualmente si userà per altro..tipo liste ecc)
-func actuators(registration bool, message chan Message, id int) {
-
-	numact := numactuators
+func actuators(registration bool, message chan Message, id int,numact int, cactuator []chan Actuator) {
 
 	ida := 0
 
 	if registration {
+
 		for i := range cactuator {
 			cactuator[i] = make(chan Actuator)
 		}
@@ -127,9 +137,8 @@ func actuators(registration bool, message chan Message, id int) {
 }
 
 //stesso discorso dell'attuatore per il bool
-func sensors(registration bool) {
+func sensors(registration bool,numsens int,csensor []chan Sensor) {
 
-	numsens := numsensors
 	ids := 0
 
 	if registration {
@@ -218,7 +227,7 @@ func broker(sensor chan Sensor, actuator chan Actuator, registration bool) {
 			for i := range attuatorArchive {
 				for j := 0; j < numtopics; j++ {
 					if attuatorArchive[i].topicsA[i][j] == connectS.topicsS[connectS.id] {
-						go actuators(false, cbroker, i)
+						go actuators(false, cbroker, i,0,cactuator)
 						cbroker <- Message{connectS.topicsS[connectS.id], connectS.value}
 						go waiting(ackch[i], i, Message{connectS.topicsS[connectS.id], connectS.value})
 
@@ -250,7 +259,7 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 			fmt.Println("Ho riscontrato un : ", s, " da ", ackIndex)
 
 			//se ho riscontrato un fault spedisco nuovamente il messaggio
-			go actuators(false, cbroker, ackIndex)
+			go actuators(false, cbroker, ackIndex,0,cactuator)
 			cbroker <- message
 			ackch <- s
 
@@ -264,7 +273,7 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 		//timeout: scaduto il tempo ritrasmetto il messaggio
 	case <-time.After(time.Second * 4):
 		fmt.Println("timeout ", message.value, "Attuatore ", ackIndex, ", ritrasmetto")
-		go actuators(false, cbroker, ackIndex)
+		go actuators(false, cbroker, ackIndex,0,cactuator)
 		cbroker <- message
 		<-ackch
 
