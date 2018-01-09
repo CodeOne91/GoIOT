@@ -75,7 +75,7 @@ func main() {
 	sensorArchive   = make([]Sensor,nsensor)
 
 	var tickChan = time.NewTicker(frequency).C
-	fmt.Println("Frequenza invio messaggi : ", frequency)
+	fmt.Println("Freque : ", frequency)
 	sensors(true,nsensor,csensor)
 	actuators(true, nil, 0,nactuator,cactuator)
 
@@ -125,11 +125,11 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 
 			//ackch è un canale in cui l'attuatore manda l'ack di riferimento al broker
 			ackch[id] = make(chan string)
-			fmt.Println("Attuatore:", id, " manda ack")
+			fmt.Println("Actuator:", id, " sending ack")
 			//ritardo per testare timeout
-			//time.Sleep(time.Second * 1)
+			//time.Sleep(time.Second * 5)
 
-			go broker(nil, cactuator[id], false)
+			//go broker(nil, cactuator[id], false)
 			//Spedisco nel canale un valore casuale tra fault e ack, insieme al messaggio ricevuto(da rivedere)
 			ackch[id] <- ackNack[0]
 			writeFile(x)
@@ -254,12 +254,12 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 	case s := <-ackch:
 
 		if s == "ack" {
-			fmt.Println("Ho ricevuto : ", s, " da ", ackIndex, "con ", message.value)
+			fmt.Println("Received: ", s, " from actuator:", ackIndex, " from topic with value:", message.value)
 			ackch <- s
 			return
 			//non si verifica attualmente
 		} else if s == "fault" {
-			fmt.Println("Ho riscontrato un : ", s, " da ", ackIndex)
+			fmt.Println(" ", s, " from actuator: ", ackIndex)
 
 			//se ho riscontrato un fault spedisco nuovamente il messaggio
 			go actuators(false, cbroker, ackIndex,0,cactuator)
@@ -268,14 +268,15 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 
 			return
 		} else {
-			fmt.Println("Messaggio inaspettato")
+			fmt.Println("unexpected message")
 			ackch <- s
 
 			return
 		}
 		//timeout: scaduto il tempo ritrasmetto il messaggio
 	case <-time.After(time.Second * 4):
-		fmt.Println("timeout ", message.value, "Attuatore ", ackIndex, ", ritrasmetto")
+		fmt.Println("timeout for topic with value: ", message.value, "Retransmitting for actuator ",
+			ackIndex)
 		go actuators(false, cbroker, ackIndex,0,cactuator)
 		cbroker <- message
 		<-ackch
