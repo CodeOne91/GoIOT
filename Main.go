@@ -34,7 +34,7 @@ func (m Message) MessageToString() string{
 
 
 //al momento tutti gli attori e i topic sono costanti, poi si potrebbero mettere interattivi
-const numtopics = 2
+var numtopics int
 
 //uso delle variabili globali cosicchè istanzio solo una volta la memoria per le funzioni che vengono richiamate più volte
 //alla fine, li usiamo sempre nel nostro progetto
@@ -46,7 +46,7 @@ var attuatorArchive []Actuator
 var sensorArchive []Sensor
 var path string
 var receivedMessage []string
-var topicList  = []string{"topic1", "topic2","topic3","topic4"}
+var topicList  []string
 var ackNack = [2]string{"ack", "fault"}//fault messo come test
 //frequenza di invio messaggi da parte di sensor
 var frequency time.Duration
@@ -58,14 +58,25 @@ func main() {
 
 	var nsensor   int
 	var nactuator int
+	var topictmp  string
 
 	fmt.Print("Number of Sensors: ")
 	fmt.Scan(&nsensor)
+	fmt.Print("Number of topics: ")
+	fmt.Scan(&numtopics)
+	topicList = make([]string,numtopics)
+	for numtopics > 0{
+		fmt.Print("Inserisci topic: ")
+		fmt.Scan(&topictmp)
+		numtopics--
+		topicList[numtopics] = topictmp
+	}
 	fmt.Print("Number of Actuators: ")
 	fmt.Scan(&nactuator)
 	fmt.Print("Frequency for sending messages :")
 	fmt.Scan(&frequency)
 	frequency = frequency * time.Second
+
 
 	csensor   = make([]chan Sensor,nsensor)
 	cactuator = make([]chan Actuator,nactuator)
@@ -108,7 +119,13 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 
 		//al momento, sto usando gli stessi topic per ogni attuatore, poi ovviamente si possono cambiare
 		for numact > 0 {
-			topicsA.topicsA[ida] = []string{"topic1", "topic4"}
+			n := len(topicList)
+			pickrand := rand.Intn(n)
+			for t :=0;t<=pickrand;t++{
+
+				topicsA.topicsA[ida] = append(topicsA.topicsA[ida],topicList[t])
+			}
+			//topicsA.topicsA[ida] = []string{"topic1", "topic4"}
 			go broker(nil, cactuator[numact-1], true)
 			cactuator[numact-1] <- Actuator{ida, topicsA.topicsA}
 			ida++
@@ -165,7 +182,8 @@ func sensors(registration bool,numsens int,csensor []chan Sensor) {
 
 		for numsens > 0 {
 			go broker(csensor[numsens-1], nil, false)
-			topicsS.topicsS[ids] = topicList[rand.Intn(4)]                                   // per ora, topic uguale per tutti i sensori
+			n := len(topicList)
+			topicsS.topicsS[ids] = topicList[rand.Intn(n)]                                   // per ora, topic uguale per tutti i sensori
 			csensor[numsens-1] <- Sensor{ids, topicsS.topicsS, rand.Intn(50)} //poi il value sarà random
 			ids++
 			//time.Sleep(1 * time.Second)
