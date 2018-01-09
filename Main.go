@@ -126,10 +126,11 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 			//ackch è un canale in cui l'attuatore manda l'ack di riferimento al broker
 			ackch[id] = make(chan string)
 			fmt.Println("Actuator:", id, " sending ack")
-			//ritardo per testare timeout
-			//time.Sleep(time.Second * 5)
 
-			//go broker(nil, cactuator[id], false)
+
+			go waiting(ackch[id], id, x)
+			//testing timeout with time.sleep
+			time.Sleep(time.Second * 5)
 			//Spedisco nel canale un valore casuale tra fault e ack, insieme al messaggio ricevuto(da rivedere)
 			ackch[id] <- ackNack[0]
 			writeFile(x)
@@ -232,7 +233,7 @@ func broker(sensor chan Sensor, actuator chan Actuator, registration bool) {
 					if attuatorArchive[i].topicsA[i][j] == connectS.topicsS[connectS.id] {
 						go actuators(false, cbroker, i,0,cactuator)
 						cbroker <- Message{connectS.topicsS[connectS.id], connectS.value}
-						go waiting(ackch[i], i, Message{connectS.topicsS[connectS.id], connectS.value})
+						//go waiting(ackch[i], i, Message{connectS.topicsS[connectS.id], connectS.value})
 
 						//	time.Sleep(2 * time.Second)
 
@@ -274,14 +275,14 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 			return
 		}
 		//timeout: scaduto il tempo ritrasmetto il messaggio
-	case <-time.After(time.Second * 4):
+	case <-time.After(time.Second * 1):
 		fmt.Println("timeout for topic with value: ", message.value, "Retransmitting for actuator ",
 			ackIndex)
 		go actuators(false, cbroker, ackIndex,0,cactuator)
 		cbroker <- message
 		<-ackch
 
-		return
+
 
 
 	}
