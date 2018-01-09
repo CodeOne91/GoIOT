@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-//Non costruisco la struct di broker, poichè è solo colui che smista i messaggi nella mia config
 type Sensor struct {
 	id      int
 	topicsS map[int]string
@@ -23,7 +22,6 @@ type Message struct {
 	topic string
 	value int
 }
-//mi serve per scrivere su file, convertendo i field dei messaggi struct
 func (m Message) MessageToString() string{
 
 	str := fmt.Sprintln("Topic: ",m.topic," Value: ",m.value)
@@ -33,24 +31,21 @@ func (m Message) MessageToString() string{
 
 
 
-//al momento tutti gli attori e i topic sono costanti, poi si potrebbero mettere interattivi
 var numtopics int
 
-//uso delle variabili globali cosicchè istanzio solo una volta la memoria per le funzioni che vengono richiamate più volte
-//alla fine, li usiamo sempre nel nostro progetto
 var csensor []chan Sensor
 var cactuator []chan Actuator
 var cbroker chan Message
-var ackch []chan string //canale usato per spedire ack dall'attuatore
+var ackch []chan string
 var attuatorArchive []Actuator
 var sensorArchive []Sensor
 var path string
 var receivedMessage []string
 var topicList  []string
 var ackNack = [2]string{"ack", "fault"}//fault messo come test
-//frequenza di invio messaggi da parte di sensor
+
 var frequency time.Duration
-//la funzione main non fa altro che le routine normali SEQUENZIALI alle quali sono associate go routine "multithread"
+
 func main() {
 	//Prendo il path per poter scrivere nel percorso di esecuzione
 	path = definePath()
@@ -100,9 +95,7 @@ func main() {
 	}
 
 }
-//la booleana registration, serve per la connect e per il make dei channel e dei topics,
-//il message è il tipo di channel che prende per poi processaarlo
-//l'id lo userò per la funzione del broker per stampare a schermo(e poi eventualmente si userà per altro..tipo liste ecc)
+
 func actuators(registration bool, message chan Message, id int,numact int, cactuator []chan Actuator) {
 
 	ida := 0
@@ -133,14 +126,13 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 			<-cactuator[numact-1]
 			numact--
 
-		} //l'else serve ad accogliere i messaggi del broker e a stampare su schermo ciò che riceve l'attuatore
+		}
 	} else {
 		select {
 		case x := <-message:
 			fmt.Println("Acutator", id, "received", x.topic, "with value", x.value)
 			//time.Sleep(time.Second*1)
 
-			//ackch è un canale in cui l'attuatore manda l'ack di riferimento al broker
 			ackch[id] = make(chan string)
 			fmt.Println("Actuator:", id, " sending ack")
 
@@ -157,7 +149,6 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 	}
 }
 
-//stesso discorso dell'attuatore per il bool
 func sensors(registration bool,numsens int,csensor []chan Sensor) {
 
 	ids := 0
@@ -169,7 +160,7 @@ func sensors(registration bool,numsens int,csensor []chan Sensor) {
 
 		for numsens > 0 {
 			go broker(csensor[numsens-1], nil, true)
-			csensor[numsens-1] <- Sensor{ids, nil, 0} //non servono nè topic nè value per la registrazione
+			csensor[numsens-1] <- Sensor{ids, nil, 0}
 			ids++
 			//time.Sleep(1 * time.Second)
 			<-csensor[numsens-1]
@@ -183,8 +174,8 @@ func sensors(registration bool,numsens int,csensor []chan Sensor) {
 		for numsens > 0 {
 			go broker(csensor[numsens-1], nil, false)
 			n := len(topicList)
-			topicsS.topicsS[ids] = topicList[rand.Intn(n)]                                   // per ora, topic uguale per tutti i sensori
-			csensor[numsens-1] <- Sensor{ids, topicsS.topicsS, rand.Intn(50)} //poi il value sarà random
+			topicsS.topicsS[ids] = topicList[rand.Intn(n)]
+			csensor[numsens-1] <- Sensor{ids, topicsS.topicsS, rand.Intn(50)}
 			ids++
 			//time.Sleep(1 * time.Second)
 			//ho dovuto commentare altrimenti si blocca<-cbroker//questo serve per non far andare in deadlock il broker così non si aspettano a vicenda con csensor
@@ -194,7 +185,6 @@ func sensors(registration bool,numsens int,csensor []chan Sensor) {
 	}
 }
 
-//variabili di loop per riempire gli array di struct actuator e di struct Sensor (potrebbero anche essere provvisori, mi interessava la communication al momento)
 var i = 0
 var j = 0
 
@@ -251,7 +241,6 @@ func broker(sensor chan Sensor, actuator chan Actuator, registration bool) {
 					if attuatorArchive[i].topicsA[i][j] == connectS.topicsS[connectS.id] {
 						go actuators(false, cbroker, i,0,cactuator)
 						cbroker <- Message{connectS.topicsS[connectS.id], connectS.value}
-						//go waiting(ackch[i], i, Message{connectS.topicsS[connectS.id], connectS.value})
 
 						//	time.Sleep(2 * time.Second)
 
@@ -299,9 +288,7 @@ func waiting(ackch chan string, ackIndex int, message Message) {
 		go actuators(false, cbroker, ackIndex,0,cactuator)
 		cbroker <- message
 		<-ackch
-
-
-
+		
 
 	}
 
