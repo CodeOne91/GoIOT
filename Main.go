@@ -147,7 +147,7 @@ func actuators(registration bool, message chan Message, id int,numact int, cactu
 
 			go waiting(ackch[id], id, x)
 			//testing timeout with time.sleep
-			time.Sleep(time.Second * 5)
+			//time.Sleep(time.Second * 5)
 			//Spedisco nel canale un valore casuale tra fault e ack, insieme al messaggio ricevuto(da rivedere)
 			ackch[id] <- ackNack[0]
 			writeFile(x)
@@ -245,9 +245,11 @@ func broker(sensor chan Sensor, actuator chan Actuator, registration bool) {
 
 			//time.Sleep(100 * time.Millisecond)
 			//scorro sugli attuatori e vedo se il topic serve a qualcuno e lo mando nel caso.
-
 			for i := range attuatorArchive {
-				for j := 0; j < numtopics; j++ {
+
+				for j := 0; j <len(attuatorArchive[i].topicsA[i]); j++ {
+//					fmt.Println(len(attuatorArchive[i].topicsA[i]),len(topicList))
+
 					if attuatorArchive[i].topicsA[i][j] == connectS.topicsS[connectS.id] {
 						go actuators(false, cbroker, i,0,cactuator)
 						cbroker <- Message{connectS.topicsS[connectS.id], connectS.value}
