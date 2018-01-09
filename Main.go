@@ -49,7 +49,7 @@ var receivedMessage []string
 var topicList  = []string{"topic1", "topic2","topic3","topic4"}
 var ackNack = [2]string{"ack", "fault"}//fault messo come test
 //frequenza di invio messaggi da parte di sensor
-const frequency time.Duration = 4 * time.Second
+var frequency time.Duration
 //la funzione main non fa altro che le routine normali SEQUENZIALI alle quali sono associate go routine "multithread"
 func main() {
 	//Prendo il path per poter scrivere nel percorso di esecuzione
@@ -63,6 +63,9 @@ func main() {
 	fmt.Scan(&nsensor)
 	fmt.Print("Number of Actuators: ")
 	fmt.Scan(&nactuator)
+	fmt.Print("Frequency for sending messages :")
+	fmt.Scan(&frequency)
+	frequency = frequency * time.Second
 
 	csensor   = make([]chan Sensor,nsensor)
 	cactuator = make([]chan Actuator,nactuator)
